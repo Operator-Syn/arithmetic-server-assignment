@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run all Part 3 measurement benchmarks.
+"""Run all Part 3 measurement benchmarks into separate files.
 
 Run the server first in another terminal:
 
@@ -9,8 +9,13 @@ Then run this script from the project root:
 
     python3 run_measurements.py --port 14344
 
-By default, this replaces report/measurements.md so repeated test runs do not
-mix old and new results. Use --append if old results should be kept.
+This creates:
+
+    report/m1_measurements.md
+    report/m2_measurements.md
+    report/m3_measurements.md
+
+By default, old files are replaced. Use --append to keep old results.
 """
 
 from __future__ import annotations
@@ -24,12 +29,25 @@ from pathlib import Path
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 14344
-DEFAULT_OUTPUT = Path("report/measurements.md")
+DEFAULT_OUTPUT_DIR = Path("report")
 
 
 def write_line(output_path: Path, text: str) -> None:
     with output_path.open("a", encoding="utf-8") as file:
         file.write(text + "\n")
+
+
+def prepare_file(output_path: Path, title: str, host: str, port: int, append: bool) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if not append:
+        output_path.write_text("", encoding="utf-8")
+
+    write_line(output_path, f"# {title}")
+    write_line(output_path, "")
+    write_line(output_path, f"Date: {datetime.now().isoformat(timespec='seconds')}")
+    write_line(output_path, f"Host: {host}")
+    write_line(output_path, f"Port: {port}")
 
 
 def run_command(output_path: Path, command: list[str]) -> None:
@@ -58,24 +76,21 @@ def run_command(output_path: Path, command: list[str]) -> None:
         raise RuntimeError(f"command failed with exit code {return_code}: {command_text}")
 
 
-def run_all_measurements(host: str, port: int, output_path: Path, append: bool) -> None:
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    if not append:
-        output_path.write_text("", encoding="utf-8")
-
-    write_line(output_path, "# Arithmetic Server Measurements")
-    write_line(output_path, "")
-    write_line(output_path, f"Date: {datetime.now().isoformat(timespec='seconds')}")
-    write_line(output_path, f"Host: {host}")
-    write_line(output_path, f"Port: {port}")
-
+def run_all_measurements(
+    host: str,
+    port: int,
+    output_dir: Path,
+    append: bool,
+) -> None:
     python = sys.executable
 
-    write_line(output_path, "")
-    write_line(output_path, "## M1 Sequential RTT")
+    m1_output = output_dir / "m1_measurements.md"
+    m2_output = output_dir / "m2_measurements.md"
+    m3_output = output_dir / "m3_measurements.md"
+
+    prepare_file(m1_output, "M1 Sequential RTT Measurements", host, port, append)
     run_command(
-        output_path,
+        m1_output,
         [
             python,
             "bench_client.py",
@@ -89,10 +104,9 @@ def run_all_measurements(host: str, port: int, output_path: Path, append: bool) 
         ],
     )
 
-    write_line(output_path, "")
-    write_line(output_path, "## M2 Pipelined Throughput")
+    prepare_file(m2_output, "M2 Pipelined Throughput Measurements", host, port, append)
     run_command(
-        output_path,
+        m2_output,
         [
             python,
             "bench_client.py",
@@ -106,11 +120,11 @@ def run_all_measurements(host: str, port: int, output_path: Path, append: bool) 
         ],
     )
 
-    write_line(output_path, "")
-    write_line(output_path, "## M3 Concurrent Clients")
+    prepare_file(m3_output, "M3 Concurrent Client Measurements", host, port, append)
+
     for clients in (5, 10, 20):
         run_command(
-            output_path,
+            m3_output,
             [
                 python,
                 "bench_client.py",
@@ -126,7 +140,10 @@ def run_all_measurements(host: str, port: int, output_path: Path, append: bool) 
             ],
         )
 
-    print(f"\nSaved measurements to {output_path}")
+    print("")
+    print(f"Saved M1 results to {m1_output}")
+    print(f"Saved M2 results to {m2_output}")
+    print(f"Saved M3 results to {m3_output}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -134,7 +151,7 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--append", action="store_true")
 
     return parser.parse_args()
@@ -144,7 +161,12 @@ def main() -> None:
     args = parse_args()
 
     try:
-        run_all_measurements(args.host, args.port, args.output, args.append)
+        run_all_measurements(
+            args.host,
+            args.port,
+            args.output_dir,
+            args.append,
+        )
     except Exception as exc:
         print(f"error: {exc}", file=sys.stderr)
         raise SystemExit(1)
