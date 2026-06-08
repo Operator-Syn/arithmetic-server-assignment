@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Deque, Optional
 
 
-WELCOME = "OK Welcome to the CSc 113 Arithmetic Server!"
+WELCOME = "OK Welcome to the CSC 113 Arithmetic Server!"
 BYE = "OK Bye."
 
 MAX_LINE_BYTES = 256
