@@ -1,8 +1,24 @@
 #!/usr/bin/env python3
-"""M1: sequential benchmark client.
+"""M1: sequential RTT benchmark client.
 
 This client sends ADD 1 2 sequentially. It waits for each response before
 sending the next command.
+
+Run the server first:
+
+    python3 arithmetic_server.py --port 14344 --recv-log logs/recv.log
+
+Then run this client from the project root:
+
+    python3 -m benchmarks.m1_rtt_client --port 14344 --runs 3
+
+Or run it through the main benchmark file:
+
+    python3 bench_client.py m1 --port 14344 --runs 3
+
+To save the output for the report:
+
+    python3 bench_client.py m1 --port 14344 --runs 3 | tee -a report/measurements.md
 """
 
 from __future__ import annotations
@@ -57,7 +73,10 @@ def run(host: str, port: int, count: int, runs: int, timeout: float) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
 
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
