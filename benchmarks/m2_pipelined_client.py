@@ -2,6 +2,22 @@
 """M2: pipelined throughput benchmark client.
 
 This client sends all ADD 1 2 commands first, then reads all responses.
+
+Run the server first:
+
+    python3 arithmetic_server.py --port 14344 --recv-log logs/l2_pipelined_recv.log
+
+Then run this client from the project root:
+
+    python3 -m benchmarks.m2_pipelined_client --port 14344 --runs 3
+
+Or run it through the main benchmark file:
+
+    python3 bench_client.py m2 --port 14344 --runs 3
+
+To save the output for the report:
+
+    python3 bench_client.py m2 --port 14344 --runs 3 | tee -a report/measurements.md
 """
 
 from __future__ import annotations
@@ -29,8 +45,10 @@ def run_once(host: str, port: int, count: int, timeout: float) -> tuple[float, f
     with sock:
         start = time.perf_counter()
 
+        # Send every command first, without waiting for each response.
         sock.sendall(payload)
 
+        # After sending all commands, read the same number of responses.
         for _ in range(count):
             read_expected_add_response(reader)
 
@@ -61,7 +79,10 @@ def run(host: str, port: int, count: int, runs: int, timeout: float) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
 
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
