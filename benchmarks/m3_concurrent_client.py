@@ -3,6 +3,28 @@
 
 Each client thread opens its own TCP connection and runs the sequential
 ADD 1 2 benchmark.
+
+Run the server first:
+
+    python3 arithmetic_server.py --port 14344 --recv-log logs/recv.log
+
+Then run this client from the project root:
+
+    python3 -m benchmarks.m3_concurrent_client --port 14344 --clients 5 --runs 1
+    python3 -m benchmarks.m3_concurrent_client --port 14344 --clients 10 --runs 1
+    python3 -m benchmarks.m3_concurrent_client --port 14344 --clients 20 --runs 1
+
+Or run it through the main benchmark file:
+
+    python3 bench_client.py m3 --port 14344 --clients 5 --runs 1
+    python3 bench_client.py m3 --port 14344 --clients 10 --runs 1
+    python3 bench_client.py m3 --port 14344 --clients 20 --runs 1
+
+To save the output for the report:
+
+    python3 bench_client.py m3 --port 14344 --clients 5 --runs 1 | tee -a report/measurements.md
+    python3 bench_client.py m3 --port 14344 --clients 10 --runs 1 | tee -a report/measurements.md
+    python3 bench_client.py m3 --port 14344 --clients 20 --runs 1 | tee -a report/measurements.md
 """
 
 from __future__ import annotations
@@ -84,7 +106,10 @@ def run(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
 
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
