@@ -20,16 +20,13 @@ import socket
 import threading
 from collections import deque
 from pathlib import Path
-from typing import Deque
+from typing import Deque, Optional
 
 
 WELCOME = "OK Welcome to the CSc 113 Arithmetic Server!"
 BYE = "OK Bye."
 
-# The limit is 256 bytes including the newline.
 MAX_LINE_BYTES = 256
-
-# A larger recv size helps demonstrate pipelined commands arriving together.
 RECV_SIZE = 4096
 
 DEFAULT_HOST = "127.0.0.1"
@@ -60,17 +57,12 @@ COMMAND_HELP = {
         "If no command is specified, it will display all the available commands and their meanings"
     ),
     "QUIT": "OK QUIT - to end the current session of the arithmetic server",
-
-    # Original extension. This is not included in the plain HELP output so the
-    # Appendix A HELP transcript still matches the required base protocol.
     "MOD": "OK MOD <N1> <N2> - to return the remainder after dividing N1 by N2",
 }
 
 
 class RecvLogger:
-    """Thread-safe logger for recv() calls."""
-
-    def __init__(self, path: Path | None) -> None:
+    def __init__(self, path: Optional[Path]) -> None:
         self.path = path
         self._lock = threading.Lock()
 
@@ -82,20 +74,18 @@ class RecvLogger:
             return
 
         timestamp = dt.datetime.now().strftime("%H:%M:%S.%f")[:-3]
-
         line = (
             f"[{timestamp}] {address[0]}:{address[1]} recv() -> "
             f"{len(data)} bytes {data!r}\n"
         )
 
+        # Different client threads can write logs at the same time.
         with self._lock:
             with self.path.open("a", encoding="utf-8") as log_file:
                 log_file.write(line)
 
 
 class ServerState:
-    """Shared state used only for graceful shutdown and socket cleanup."""
-
     def __init__(self) -> None:
         self.stop_event = threading.Event()
         self._lock = threading.Lock()
@@ -138,13 +128,8 @@ class ServerState:
 
 
 class Session:
-    """Per-client session state.
-
-    Each client thread gets its own Session object, so histories do not leak
-    across connections.
-    """
-
     def __init__(self) -> None:
+        # Belongs to one client only, not the whole server.
         self.history: Deque[str] = deque(maxlen=5)
 
     def add_history(self, command: str, result: int) -> None:
@@ -152,7 +137,6 @@ class Session:
 
 
 def send_line(conn: socket.socket, text: str) -> None:
-    """Send a newline-terminated server response."""
     conn.sendall((text + "\n").encode("utf-8"))
 
 
@@ -178,28 +162,27 @@ def handle_binary_operation(
     n1 = parse_int(args[0])
     n2 = parse_int(args[1])
 
-    match operation:
-        case "ADD":
-            result = n1 + n2
+    if operation == "ADD":
+        result = n1 + n2
 
-        case "SUB":
-            result = n1 - n2
+    elif operation == "SUB":
+        result = n1 - n2
 
-        case "MUL":
-            result = n1 * n2
+    elif operation == "MUL":
+        result = n1 * n2
 
-        case "DIV":
-            if n2 == 0:
-                return "ERR Division by 0.", False
-            result = n1 // n2
+    elif operation == "DIV":
+        if n2 == 0:
+            return "ERR Division by 0.", False
+        result = n1 // n2
 
-        case "MOD":
-            if n2 == 0:
-                return "ERR Modulo by 0.", False
-            result = n1 % n2
+    elif operation == "MOD":
+        if n2 == 0:
+            return "ERR Modulo by 0.", False
+        result = n1 % n2
 
-        case _:
-            return f"ERR Unknown operation {operation}.", False
+    else:
+        return f"ERR Unknown operation {operation}.", False
 
     canonical = f"{operation} {n1} {n2}"
     session.add_history(canonical, result)
@@ -225,27 +208,25 @@ def handle_rnd(args: list[str], session: Session) -> tuple[str, bool]:
 def handle_hist(args: list[str], session: Session) -> tuple[str, bool]:
     require_arg_count("HIST", args, 0)
 
-    lines = ["OK The last valid operations from this session (up to 5) are:"]
+    lines = ["OK — The last five (5) valid operations from this session are:"]
     lines.extend(session.history)
 
     return "\n".join(lines), False
 
 
 def handle_help(args: list[str]) -> tuple[str, bool]:
-    match len(args):
-        case 0:
-            return HELP_TEXT, False
+    if len(args) == 0:
+        return HELP_TEXT, False
 
-        case 1:
-            topic = args[0].upper()
+    if len(args) == 1:
+        topic = args[0].upper()
 
-            if topic not in COMMAND_HELP:
-                return f"ERR Unknown operation {topic}.", False
+        if topic not in COMMAND_HELP:
+            return f"ERR Unknown operation {topic}.", False
 
-            return COMMAND_HELP[topic], False
+        return COMMAND_HELP[topic], False
 
-        case _:
-            return "ERR Invalid number of arguments to HELP.", False
+    return "ERR Invalid number of arguments to HELP.", False
 
 
 def handle_quit(args: list[str]) -> tuple[str, bool]:
@@ -254,14 +235,9 @@ def handle_quit(args: list[str]) -> tuple[str, bool]:
 
 
 def handle_command(line: str, session: Session) -> tuple[str, bool]:
-    """Process one complete command line.
-
-    Returns:
-        response text and whether the client connection should close.
-    """
     parts = line.split()
 
-    # Blank lines are silently ignored.
+    # Blank lines will be ignored.
     if not parts:
         return "", False
 
@@ -269,52 +245,49 @@ def handle_command(line: str, session: Session) -> tuple[str, bool]:
     args = parts[1:]
 
     try:
-        match operation:
-            case "ADD" | "SUB" | "MUL" | "DIV" | "MOD":
-                return handle_binary_operation(operation, args, session)
+        if operation in {"ADD", "SUB", "MUL", "DIV", "MOD"}:
+            return handle_binary_operation(operation, args, session)
 
-            case "RND":
-                return handle_rnd(args, session)
+        if operation == "RND":
+            return handle_rnd(args, session)
 
-            case "HIST":
-                return handle_hist(args, session)
+        if operation == "HIST":
+            return handle_hist(args, session)
 
-            case "HELP":
-                return handle_help(args)
+        if operation == "HELP":
+            return handle_help(args)
 
-            case "QUIT":
-                return handle_quit(args)
+        if operation == "QUIT":
+            return handle_quit(args)
 
-            case _:
-                return f"ERR Unknown operation {operation}.", False
+        return f"ERR Unknown operation {operation}.", False
 
     except ValueError as exc:
         return f"ERR {exc}", False
 
 
 def extract_raw_lines(buffer: bytearray) -> list[bytes]:
-    """Extract complete newline-delimited raw command lines.
-
-    The returned lines do not include the trailing newline.
-    """
+    # TCP is a byte stream, so a command may arrive partially or together
+    # with other commands. Only complete newline-terminated lines are returned.
     lines: list[bytes] = []
 
     while True:
         try:
-            newline_index = buffer.index(0x0A)
+            newline_index = buffer.index(0x0A)  # newline: "\n"
         except ValueError:
+            # No full command yet. Leave the partial data in the buffer.
             return lines
 
+        # Copy one complete line without the newline character.
         raw_line = bytes(buffer[:newline_index])
+
+        # Remove the processed line from the buffer.
         del buffer[: newline_index + 1]
+
         lines.append(raw_line)
 
-
 def decode_command_line(raw_line: bytes) -> str:
-    """Decode one raw command line.
-
-    Telnet commonly sends CRLF, so a trailing carriage return is accepted.
-    """
+    # Accept telnet-style CRLF input.
     if raw_line.endswith(b"\r"):
         raw_line = raw_line[:-1]
 
@@ -328,11 +301,6 @@ def handle_client(
     max_line_bytes: int,
     server_state: ServerState,
 ) -> None:
-    """Handle one client using a blocking recv loop.
-
-    This follows the previous activity's pattern: the accepted socket is handled
-    in a thread, and the thread uses blocking recv() calls.
-    """
     session = Session()
     buffer = bytearray()
     discarding_oversized_line = False
@@ -352,14 +320,15 @@ def handle_client(
                 except OSError:
                     return
 
-                # Log every recv(), including the zero-byte read on disconnect.
                 recv_logger.log(address, data)
 
                 if data == b"":
                     return
 
+                # Store received bytes because.
                 buffer.extend(data)
 
+                # If a command was too long, ignore the rest until a newline.
                 if discarding_oversized_line:
                     try:
                         newline_index = buffer.index(0x0A)
@@ -371,7 +340,6 @@ def handle_client(
                     discarding_oversized_line = False
 
                 for raw_line in extract_raw_lines(buffer):
-                    # raw_line excludes "\n", so add 1 for the newline byte.
                     if len(raw_line) + 1 > max_line_bytes:
                         try:
                             send_line(conn, "ERR Command too long.")
@@ -391,8 +359,7 @@ def handle_client(
                     if should_close:
                         return
 
-                # If the client has sent 256 bytes without a newline, then even
-                # a future newline would make the command longer than the limit.
+                # A partial command without newline is already past the limit.
                 if len(buffer) >= max_line_bytes:
                     try:
                         send_line(conn, "ERR Command too long.")
@@ -406,7 +373,7 @@ def handle_client(
         server_state.unregister_client(conn)
 
 
-def serve(host: str, port: int, recv_log: Path | None, max_line_bytes: int) -> None:
+def serve(host: str, port: int, recv_log: Optional[Path], max_line_bytes: int) -> None:
     recv_logger = RecvLogger(recv_log)
     server_state = ServerState()
 
@@ -438,9 +405,6 @@ def serve(host: str, port: int, recv_log: Path | None, max_line_bytes: int) -> N
 
                     print("connection from", client_address)
 
-                    # Same pattern as the previous activity:
-                    # the listening socket is non-blocking, but the accepted
-                    # client socket is returned to blocking mode for the thread.
                     connection.setblocking(True)
 
                     thread = threading.Thread(
