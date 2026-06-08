@@ -49,22 +49,24 @@ def main() -> None:
     args = parse_args()
 
     try:
-        match args.benchmark:
-            case "m1":
-                run_m1(args.host, args.port, args.count, args.runs, args.timeout)
+        if args.benchmark == "m1":
+            run_m1(args.host, args.port, args.count, args.runs, args.timeout)
 
-            case "m2":
-                run_m2(args.host, args.port, args.count, args.runs, args.timeout)
+        elif args.benchmark == "m2":
+            run_m2(args.host, args.port, args.count, args.runs, args.timeout)
 
-            case "m3":
-                run_m3(
-                    args.host,
-                    args.port,
-                    args.count,
-                    args.clients,
-                    args.runs,
-                    args.timeout,
-                )
+        elif args.benchmark == "m3":
+            run_m3(
+                args.host,
+                args.port,
+                args.count,
+                args.clients,
+                args.runs,
+                args.timeout,
+            )
+
+        else:
+            raise RuntimeError(f"unknown benchmark: {args.benchmark}")
 
     except Exception as exc:
         print(f"error: {exc}", file=sys.stderr)
