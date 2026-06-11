@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# test/malformed_client.py
 """Exercise malformed input cases."""
 
 from __future__ import annotations
@@ -32,7 +33,7 @@ def read_line(sock: socket.socket) -> str:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=5000)
+    parser.add_argument("--port", type=int, default=14344)
     return parser.parse_args()
 
 

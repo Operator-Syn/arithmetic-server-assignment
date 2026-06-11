@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Deque, Optional
 
 
-WELCOME = "OK Welcome to the CSC 113 Arithmetic Server!"
+WELCOME = "OK Welcome to the CSc 113 Arithmetic Server!"
 BYE = "OK Bye."
 
 MAX_LINE_BYTES = 256
@@ -34,30 +34,30 @@ DEFAULT_PORT = 14344
 
 HELP_TEXT = (
     "OK The following commands are available:\n"
-    "ADD <N1> <N2> - to add N1 and N2\n"
-    "SUB <N1> <N2> - to subtract N2 from N1\n"
-    "MUL <N1> <N2> - to multiply N1 by N2\n"
-    "DIV <N1> <N2> - to divide N1 by N2\n"
-    "RND <N> - to generate a random number between 1 and N, inclusive\n"
-    "HIST - to show the last 5 valid operations in the session\n"
-    "HELP [command] - to display the syntax and semantics of a specific command. "
+    "ADD <N1> <N2> -to add N1 and N2\n"
+    "SUB <N1> <N2> -to subtract N2 from N1\n"
+    "MUL <N1> <N2> -to multiply N1 by N2\n"
+    "DIV <N1> <N2> -to divide N1 by N2\n"
+    "RND <N> -to generate a random number between 1 and N, inclusive\n"
+    "HIST -to show the last 5 valid operations in the session\n"
+    "HELP [command] -to display the syntax and semantics of a specific command. "
     "If no command is specified, it will display all the available commands and their meanings\n"
-    "QUIT - to end the current session of the arithmetic server"
+    "QUIT -to end the current session of the arithmetic server"
 )
 
 COMMAND_HELP = {
-    "ADD": "OK ADD <N1> <N2> - to add N1 and N2",
-    "SUB": "OK SUB <N1> <N2> - to subtract N2 from N1",
-    "MUL": "OK MUL <N1> <N2> - to multiply N1 by N2",
-    "DIV": "OK DIV <N1> <N2> - to divide N1 by N2",
-    "RND": "OK RND <N> - to generate a random number between 1 and N, inclusive",
-    "HIST": "OK HIST - to show the last 5 valid operations in the session",
+    "ADD": "OK ADD <N1> <N2> -to add N1 and N2",
+    "SUB": "OK SUB <N1> <N2> -to subtract N2 from N1",
+    "MUL": "OK MUL <N1> <N2> -to multiply N1 by N2",
+    "DIV": "OK DIV <N1> <N2> -to divide N1 by N2",
+    "RND": "OK RND <N> -to generate a random number between 1 and N, inclusive",
+    "HIST": "OK HIST -to show the last 5 valid operations in the session",
     "HELP": (
-        "OK HELP [command] - to display the syntax and semantics of a specific command. "
+        "OK HELP [command] -to display the syntax and semantics of a specific command. "
         "If no command is specified, it will display all the available commands and their meanings"
     ),
-    "QUIT": "OK QUIT - to end the current session of the arithmetic server",
-    "MOD": "OK MOD <N1> <N2> - to return the remainder after dividing N1 by N2",
+    "QUIT": "OK QUIT -to end the current session of the arithmetic server",
+    "MOD": "OK MOD <N1> <N2> -to return the remainder after dividing N1 by N2",
 }
 
 
@@ -208,7 +208,7 @@ def handle_rnd(args: list[str], session: Session) -> tuple[str, bool]:
 def handle_hist(args: list[str], session: Session) -> tuple[str, bool]:
     require_arg_count("HIST", args, 0)
 
-    lines = ["OK — The last five (5) valid operations from this session are:"]
+    lines = ["OK The last valid operations from this session (up to 5) are:"]
     lines.extend(session.history)
 
     return "\n".join(lines), False
@@ -325,7 +325,7 @@ def handle_client(
                 if data == b"":
                     return
 
-                # Store received bytes because.
+                # Keep incomplete commands until a newline arrives.
                 buffer.extend(data)
 
                 # If a command was too long, ignore the rest until a newline.

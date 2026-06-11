@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# test/smoke_client.py
 """Basic command smoke test client."""
 
 from __future__ import annotations
@@ -15,8 +16,10 @@ COMMANDS = [
     "DIV 12 0",
     "RND 100",
     "HIST",
+    "HELP",
     "HELP ADD",
-    "STATS",
+    "MOD 10 3",
+    "MOD 10 0",
     "QUIT",
 ]
 
@@ -40,7 +43,7 @@ def read_response(sock: socket.socket) -> str:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=5000)
+    parser.add_argument("--port", type=int, default=14344)
     return parser.parse_args()
 
 

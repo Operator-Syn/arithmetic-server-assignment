@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# test/oversized_client.py
 """Send an oversized line with no newline to test resynchronization."""
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ def read_line(sock: socket.socket) -> str:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=5000)
+    parser.add_argument("--port", type=int, default=14344)
     parser.add_argument("--bytes", type=int, default=10000)
     return parser.parse_args()
 

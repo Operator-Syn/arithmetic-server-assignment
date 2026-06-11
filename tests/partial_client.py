@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# test/partial_client.py
 """Send a command in two pieces to prove partial recv() handling."""
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ def read_line(sock: socket.socket) -> str:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=5000)
+    parser.add_argument("--port", type=int, default=14344)
     parser.add_argument("--delay", type=float, default=10.0)
     return parser.parse_args()
 
