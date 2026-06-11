@@ -18,6 +18,9 @@ then stops the server.
 from __future__ import annotations
 
 import argparse
+import os
+import pty
+import select
 import shutil
 import subprocess
 import sys
@@ -99,6 +102,84 @@ def run_client(
         raise RuntimeError(f"client command failed with exit code {result.returncode}")
 
 
+def print_pty_output(master_fd: int, process: subprocess.Popen, timeout: float) -> str:
+    deadline = time.time() + timeout
+    output = bytearray()
+
+    while time.time() < deadline:
+        readable, _, _ = select.select([master_fd], [], [], 0.1)
+
+        if not readable:
+            if process.poll() is not None:
+                break
+            continue
+
+        try:
+            data = os.read(master_fd, 4096)
+        except OSError:
+            break
+
+        if not data:
+            break
+
+        output.extend(data)
+        print(data.decode("utf-8", errors="replace"), end="")
+
+    return output.decode("utf-8", errors="replace")
+
+
+def run_telnet_session(host: str, port: int) -> None:
+    """Run telnet through a PTY so it behaves like the interactive L1 scenario."""
+    command = ["telnet", host, str(port)]
+    print("$ " + " ".join(command))
+
+    master_fd, slave_fd = pty.openpty()
+
+    try:
+        process = subprocess.Popen(
+            command,
+            stdin=slave_fd,
+            stdout=slave_fd,
+            stderr=slave_fd,
+            close_fds=True,
+        )
+    finally:
+        os.close(slave_fd)
+
+    transcript = ""
+
+    try:
+        transcript += print_pty_output(master_fd, process, timeout=3.0)
+
+        os.write(master_fd, b"ADD 1 2\n")
+        transcript += print_pty_output(master_fd, process, timeout=1.0)
+
+        os.write(master_fd, b"QUIT\n")
+        transcript += print_pty_output(master_fd, process, timeout=3.0)
+
+        if process.poll() is None:
+            process.terminate()
+
+        try:
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+
+        transcript += print_pty_output(master_fd, process, timeout=0.5)
+
+    finally:
+        os.close(master_fd)
+
+    if "OK 3" not in transcript:
+        raise RuntimeError("telnet session did not receive the expected OK 3 response")
+
+
+def ensure_log_written(log_path: Path, scenario: str) -> None:
+    if not log_path.exists() or log_path.stat().st_size == 0:
+        raise RuntimeError(f"{scenario} did not create a recv() log at {log_path}")
+
+
 def run_l1_telnet(host: str, port: int) -> None:
     if shutil.which("telnet") is None:
         raise RuntimeError("telnet is not installed or not in PATH")
@@ -107,14 +188,11 @@ def run_l1_telnet(host: str, port: int) -> None:
     server = start_server(host, port, log_path)
 
     try:
-        run_client(
-            ["telnet", host, str(port)],
-            input_text="ADD 1 2\r\nQUIT\r\n",
-            allowed_return_codes=(0, 1),
-        )
+        run_telnet_session(host, port)
     finally:
         stop_server(server)
 
+    ensure_log_written(log_path, "L1 telnet")
     print(f"Saved L1 telnet recv log to {log_path}")
 
 
@@ -139,6 +217,7 @@ def run_l2_pipelined(host: str, port: int) -> None:
     finally:
         stop_server(server)
 
+    ensure_log_written(log_path, "L2 pipelined")
     print(f"Saved L2 pipelined recv log to {log_path}")
 
 
@@ -162,6 +241,7 @@ def run_l3_drip(host: str, port: int) -> None:
     finally:
         stop_server(server)
 
+    ensure_log_written(log_path, "L3 drip")
     print(f"Saved L3 drip recv log to {log_path}")
 
 
