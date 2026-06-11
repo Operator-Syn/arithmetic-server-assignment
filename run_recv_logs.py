@@ -77,7 +77,11 @@ def stop_server(server: subprocess.Popen) -> None:
         server.wait()
 
 
-def run_client(command: list[str], input_text: Optional[str] = None) -> None:
+def run_client(
+    command: list[str],
+    input_text: Optional[str] = None,
+    allowed_return_codes: tuple[int, ...] = (0,),
+) -> None:
     print("$ " + " ".join(command))
 
     result = subprocess.run(
@@ -91,7 +95,7 @@ def run_client(command: list[str], input_text: Optional[str] = None) -> None:
 
     print(result.stdout, end="")
 
-    if result.returncode != 0:
+    if result.returncode not in allowed_return_codes:
         raise RuntimeError(f"client command failed with exit code {result.returncode}")
 
 
@@ -106,6 +110,7 @@ def run_l1_telnet(host: str, port: int) -> None:
         run_client(
             ["telnet", host, str(port)],
             input_text="ADD 1 2\r\nQUIT\r\n",
+            allowed_return_codes=(0, 1),
         )
     finally:
         stop_server(server)
