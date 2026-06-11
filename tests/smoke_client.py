@@ -25,18 +25,28 @@ COMMANDS = [
 
 
 def read_response(sock: socket.socket) -> str:
-    sock.settimeout(0.1)
+    sock.settimeout(5.0)
     chunks = bytearray()
+
     try:
         while True:
             data = sock.recv(4096)
+
             if data == b"":
                 break
+
             chunks.extend(data)
-    except TimeoutError:
+
+            # After the response starts, a short idle period means this
+            # response is complete. This keeps multi-line HELP/HIST together.
+            sock.settimeout(0.25)
+
+    except (TimeoutError, socket.timeout):
         pass
+
     finally:
         sock.settimeout(None)
+
     return chunks.decode("utf-8", errors="replace").rstrip("\r\n")
 
 
